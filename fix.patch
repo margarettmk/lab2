@@ -1,0 +1,33 @@
+--- a/app.py
++++ b/app.py
+@@ -1,4 +1,4 @@
+-"""Intentionally vulnerable LOCAL teaching application. Do not deploy publicly."""
++"""Corrected LOCAL training application. Illustrates fixes, not production auth."""
+ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+ from urllib.parse import urlparse, parse_qs
+ import json
+@@ -38,10 +38,10 @@
+         if url.path == '/login':
+             username = params.get('username', [''])[0]
+             password = params.get('password', [''])[0]
+-            # VULNERABILITY 1: untrusted data interpolated into SQL string.
+-            query = f"SELECT id, username FROM users WHERE username = '{username}' AND password = '{password}'"
++            # FIX 1: parameterized query prevents SQL injection.
++            query = 'SELECT id, username FROM users WHERE username = ? AND password = ?'
+             try:
+-                row = DB.execute(query).fetchone()
++                row = DB.execute(query, (username, password)).fetchone()
+             except sqlite3.Error:
+                 return self.reply(400, {'error': 'Invalid query'})
+             return self.reply(200 if row else 401, {'user': dict(row)} if row else {'error': 'Invalid credentials'})
+@@ -51,8 +51,8 @@
+                 user_id = int(params.get('user_id', [''])[0])
+             except ValueError:
+                 return self.reply(400, {'error': 'id and user_id must be integers'})
+-            # VULNERABILITY 2: note ownership is not checked.
+-            row = DB.execute('SELECT id, owner_id, content FROM notes WHERE id = ?', (note_id,)).fetchone()
++            # FIX 2: explicitly filter by note owner.
++            row = DB.execute('SELECT id, owner_id, content FROM notes WHERE id = ? AND owner_id = ?', (note_id, user_id)).fetchone()
+             return self.reply(200, {'note': dict(row), 'requester': user_id} if row else {'error': 'Note not found'})
+         return self.reply(404, {'error': 'Unknown endpoint'})
+ 
